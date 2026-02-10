@@ -1,19 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 const API_URL = process.env.EXPO_PUBLIC_GEOCODE_API_URL;
 const API_KEY = process.env.EXPO_PUBLIC_GEOCODE_API_KEY;
 
 export default function App() {
   const [address, setAddress] = useState('');
-  const [region, setRegion] = useState({
-    latitude: 60.200692, //default helsinki
-    longitude: 24.934302,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
+  const [region, setRegion] = useState(null);
   const [markerCoords, setMarkerCoords] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('No permission to get location');
+          return;
+        }
+
+        let location = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = location.coords;
+
+        const initialRegion = {
+          latitude,
+          longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+
+        setRegion(initialRegion);
+        setMarkerCoords({ latitude, longitude });
+      } catch (error) {
+        console.log('Error getting device location:', error);
+        Alert.alert('Error', 'Could not get device location.');
+      }
+    })();
+  }, []);
 
   const handleShowAddress = async () => {
     if (!address.trim()) {
@@ -42,12 +66,14 @@ export default function App() {
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lon);
 
-      setRegion({
-        ...region,
+      const newRegion = {
         latitude,
         longitude,
-      });
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
 
+      setRegion(newRegion);
       setMarkerCoords({ latitude, longitude });
     } catch (error) {
       console.log('Error fetching coordinates:', error);
